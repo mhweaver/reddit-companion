@@ -43,15 +43,19 @@ redditInfo = {
   fetching: {},
 
   getURL: function(url) {
-    for (x in this.urls) {
-      if(this.urls[x].urlList[url]) {
-        return this.urls[x].info
-      }
-    }
-    return undefined
+    var infoObj = this.getInfo(url)
+    return infoObj ? infoObj.info : undefined
   },
   getFullname: function(name) {
     return this.fullname[name]
+  },
+  getInfo: function(url) {
+    for (x in this.urls) {
+      if(this.urls[x].urlList[url]) {
+        return this.urls[x]
+      }
+    }
+    return undefined
   },
   
   setURL: function(url, info) {
@@ -61,8 +65,10 @@ redditInfo = {
       this.urls[url] = new Info(url, info)
       this.fullname[info.name] = info
       console.log('Stored reddit info for', url, info)
+      return this.urls[url]
     } else {
       console.log('Received info not newer than stored info. Did not store.', stored, info)
+      return null
     }
   },
 
@@ -228,6 +234,7 @@ redditInfo = {
 
 tabStatus = {
   tabId: {},
+  awaitingLoad: {},
 
   add: function(port) {
     var tabId = port.sender.tab.id,
@@ -501,6 +508,9 @@ chrome.extension.onRequest.addListener(function(request, sender, callback) {
   switch (request.action) {
     case 'thingClick':
       console.log('Thing clicked', request)
+      if (request.button == 0) {
+        tabStatus.awaitingLoad[sender.tab.id] = request.url
+      }
       redditInfo.setURL(request.url, request.info)
       break
   }
@@ -512,6 +522,16 @@ chrome.extension.onConnect.addListener(function(port) {
   data = tag[1]
   switch (name) {
     case 'overlay':
+      var tab = port.sender.tab
+      var awaitingLoad = tabStatus.awaitingLoad[tab.id]
+      if (awaitingLoad) {
+        if (awaitingLoad != tab.url) {
+          infoObj = redditInfo.getInfo(awaitingLoad)
+          infoObj.addURL(tab.url)
+          console.log('Redirect detected. Added new url to Info', infoObj)
+        }
+        delete tabStatus.awaitingLoad[tab.id]
+      }
       tabStatus.add(port)
       var tab = port.sender.tab,
           info = setPageActionIcon(tab)
