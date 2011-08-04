@@ -523,7 +523,7 @@ chrome.extension.onRequest.addListener(function(request, sender, callback) {
       break
   }
 })
-function portConnectHandler(port) {
+function handleConnect(port) {
   tag = port.name.split(',')
   name = tag[0]
   data = tag[1]
@@ -574,9 +574,9 @@ function handleRedirect(port, tab) {
       var url = urls[i][0]
       var thisVisitItem = urls[i][1]
       var infoMatched = function() {
-        console.log("Located redirected page's info.", currentInfo)
+        console.log("Located redirected page's info. Trying again.", currentInfo)
         currentInfo.addVisitItem(tab.url, visitItem)
-        portConnectHandler(port)
+        handleConnect(port)
       }
       if (thisVisitItem == null) {
         getLastVisitItem(url, function (storedVisitItem) {
