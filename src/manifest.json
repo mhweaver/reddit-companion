@@ -6,7 +6,8 @@
   "permissions": [
     "tabs",
     "notifications",
-    "http://*/*"
+    "http://*/*",
+    "history"
   ],
   "icons": {
     "48" : "images/shine-48.png",
