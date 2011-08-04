@@ -560,7 +560,7 @@ function handleConnect(port) {
       break
   }
 }
-chrome.extension.onConnect.addListener(portConnectHandler)
+chrome.extension.onConnect.addListener(handleConnect)
 function getLastVisitItem(url, callback) {
   chrome.history.getVisits({url: url}, function (items) {
     // get the last VisitItem for this URL. We'll assume it's the droid we're looking for.
