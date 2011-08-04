@@ -512,12 +512,6 @@ chrome.extension.onRequest.addListener(function(request, sender, callback) {
       break
   }
 })
-chrome.experimental.webRequest.onBeforeRedirect.addListener(function(details) {
-  var info = redditInfo.getURL(details.url)
-  if (info) {
-    info.addURL(request.redirectURL)
-  }
-}, {types:['main_frame']})
 chrome.extension.onConnect.addListener(function(port) {
   tag = port.name.split(':')
   name = tag[0]
