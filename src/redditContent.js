@@ -61,8 +61,7 @@ function thingClicked(e) {
   // Scrape the metadata.
   var info = scrapeThingInfo(el);
   if (info) {
-    chrome.extension.sendRequest({action:'thingClick', url:a.href, info:info,
-                                  button:e.button})
+    chrome.extension.sendRequest({action:'thingClick', url:a.href, info:info})
   }
 }
 

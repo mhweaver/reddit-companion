@@ -76,10 +76,8 @@ redditInfo = {
       this.urls[url] = new Info(url, info)
       this.fullname[info.name] = info
       console.log('Stored reddit info for', url, info)
-      return this.urls[url]
     } else {
       console.log('Received info not newer than stored info. Did not store.', stored, info)
-      return null
     }
   },
 
@@ -245,7 +243,6 @@ redditInfo = {
 
 tabStatus = {
   tabId: {},
-  awaitingLoad: {},
 
   add: function(port) {
     var tabId = port.sender.tab.id,
@@ -526,7 +523,7 @@ chrome.extension.onRequest.addListener(function(request, sender, callback) {
   }
 })
 function handleConnect(port) {
-  tag = port.name.split(',')
+  tag = port.name.split('^')
   name = tag[0]
   data = tag[1]
   switch (name) {
@@ -548,8 +545,8 @@ function handleConnect(port) {
         }
       } else {
         var referrer = data
-        if (!/^http:\/\/www\.reddit\.com\/.*/.test(tab.url) &&
-            /^http:\/\/www\.reddit\.com\/.*/.test(referrer)) {
+        var redditPattern = /^http:\/\/www\.reddit\.com\/.*/
+        if (!redditPattern.test(tab.url) && redditPattern.test(referrer)) {
           console.log("Redirect detected. Attempting to locate associated info.", port)
           handleRedirect(port, tab)
         }
