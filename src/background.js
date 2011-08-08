@@ -4,7 +4,8 @@ function initOptions() {
     'autoShowSelf': true,
     'showTooltips': true,
     'checkMail': true,
-    'allowHttps': false
+    'allowHttps': false,
+    'showPageAction': true
   }
 
   for (key in defaultOptions) {
@@ -436,7 +437,7 @@ mailChecker = {
 
 function setPageActionIcon(tab, info) {
   var pattern = (localStorage['allowHttps'] == 'true') ? /^https?:\/\/.*/ : /^http:\/\/.*/
-  if (pattern.test(tab.url)) {
+  if (localStorage['showPageAction'] == 'true' && pattern.test(tab.url)) {
     var iconPath = info ? '/images/reddit.png' : '/images/reddit-inactive.png'
     chrome.pageAction.setIcon({tabId:tab.id, path:iconPath})
     chrome.pageAction.show(tab.id)
@@ -526,6 +527,7 @@ window.addEventListener('storage', function(e) {
       }
       break
     case 'allowHttps':
+    case 'showPageAction':
       setAllPageActionIcons()
       break
   }
@@ -545,7 +547,9 @@ function setAllPageActionIcons() {
 initOptions()
 console.log('Shine loaded.')
 redditInfo.init()
-setAllPageActionIcons()
+if (localStorage['showPageAction'] == 'true') {
+  setAllPageActionIcons()  
+}
 if (localStorage['checkMail'] == 'true') {
   mailChecker.start()
 } else {
