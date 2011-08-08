@@ -49,7 +49,7 @@ redditInfo = {
     return infoObj ? infoObj.info : undefined
   },
   getURLList: function() {
-    urls = []
+    var urls = []
     for (x in this.urls) {
       for (y in this.urls[x].urlList) {
         urls.push(this.urls[x].urlList[y])
@@ -166,7 +166,7 @@ redditInfo = {
         return false
       }
     
-      storedAge = Math.floor((now - stored._ts) / 1000)
+      var storedAge = Math.floor((now - stored._ts) / 1000)
       if (storedAge < redditInfo.freshAgeThreshold) {
         console.log('Info is', storedAge, 'seconds old. Skipping update.', stored)
         return false
@@ -391,7 +391,7 @@ mailNotifier = {
     var newIdx = null,
         lastSeen = this.lastSeen,
         newCount = 0
-    for (i = 0; i < messages.length; i++) {
+    for (var i = 0; i < messages.length; i++) {
       var messageTime = messages[i].data.created_utc*1000
       if (!lastSeen || messageTime > lastSeen) {
         newCount++
@@ -523,12 +523,11 @@ chrome.extension.onRequest.addListener(function(request, sender, callback) {
   }
 })
 function handleConnect(port) {
-  tag = port.name.split('^')
-  name = tag[0]
-  data = tag[1]
+  var tag = port.name.split('^')
+  var name = tag[0],
+      data = tag[1]
   switch (name) {
     case 'overlay':
-      var tab = port.sender.tab
       tabStatus.add(port)
       var tab = port.sender.tab,
           info = setPageActionIcon(tab)
@@ -544,8 +543,8 @@ function handleConnect(port) {
           tabStatus.showInfo(tab.id, info.name)
         }
       } else {
-        var referrer = data
-        var redditPattern = /^http:\/\/www\.reddit\.com\/.*/
+        var referrer = data,
+            redditPattern = /^http:\/\/www\.reddit\.com\/.*/
         if (!redditPattern.test(tab.url) && redditPattern.test(referrer)) {
           console.log("Redirect detected. Attempting to locate associated info.", port)
           handleRedirect(port, tab)
@@ -569,9 +568,9 @@ function handleRedirect(port, tab) {
     var urls = redditInfo.getURLList()
     // urls[i] = ["url_here", null or chrome.history.VisitItem]
     for (i in urls) {
-      var currentInfo = redditInfo.getInfo(urls[i][0])
-      var url = urls[i][0]
-      var thisVisitItem = urls[i][1]
+      var currentInfo = redditInfo.getInfo(urls[i][0]),
+          url = urls[i][0],
+          thisVisitItem = urls[i][1]
       var infoMatched = function() {
         console.log("Located redirected page's info. Trying again.", currentInfo)
         currentInfo.addVisitItem(tab.url, visitItem)
