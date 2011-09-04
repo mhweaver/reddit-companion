@@ -4,6 +4,7 @@ function initOptions() {
     'autoShowSelf': true,
     'showTooltips': true,
     'checkMail': true,
+    'openOnAllPages': false
   }
 
   for (key in defaultOptions) {
@@ -485,8 +486,22 @@ chrome.extension.onRequest.addListener(function(request, sender, callback) {
       break
   }
 })
-
-chrome.extension.onConnect.addListener(function(port) {
+function shouldShow(tab, info) {
+  if (info) {
+    if (localStorage['autoShow'] == 'false') {
+      console.log('Auto-show disabled. Ignoring reddit page', info)
+    } else if (localStorage['autoShowSelf'] == 'false' && info.is_self) {
+      console.log('Ignoring self post', info)
+    } else if (barStatus.hidden[info.name]) {
+      console.log('Bar was closed on this page. Ignoring.', info)
+    } else {
+      console.log('Recognized page '+tab.url, info)
+      return true
+    }
+  }
+  return false
+}
+function handleConnect(port) {
   tag = port.name.split(':')
   name = tag[0]
   data = tag[1]
@@ -495,43 +510,60 @@ chrome.extension.onConnect.addListener(function(port) {
       tabStatus.add(port)
       var tab = port.sender.tab,
           info = setPageActionIcon(tab)
-      if (info) {
-        if (localStorage['autoShow'] == 'false') {
-          console.log('Auto-show disabled. Ignoring reddit page', info)
-        } else if (localStorage['autoShowSelf'] == 'false' && info.is_self) {
-          console.log('Ignoring self post', info)
-        } else if (barStatus.hidden[info.name]) {
-          console.log('Bar was closed on this page. Ignoring.', info)
-        } else {
-          console.log('Recognized page '+tab.url, info)
-          tabStatus.showInfo(tab.id, info.name)
-        }
-      }
+      if (localStorage['openOnAllPages'] == 'true') {
+        redditInfo.lookupURL(tab.url, false, function(info) {
+          if (shouldShow(tab, info)) {
+            setPageActionIcon(tab)
+            tabStatus.showInfo(tab.id, info.name)
+          }
+        })
+      } else if (shouldShow(tab, info)) {
+        tabStatus.showInfo(tab.id, info.name)
+      } 
       break
     case 'bar':
       barStatus.add(port, data)
       break
   }
-})
+}
+chrome.extension.onConnect.addListener(handleConnect)
 
+function allTabs(callback) {
+  // Go through all tabs and do callback with the tab as the only parameter.
+  chrome.windows.getAll({populate:true}, function(wins) {
+  wins.forEach(function(win) {
+    win.tabs.forEach(function(tab) {
+      callback(tab)
+    })
+  })
+})
+}
 window.addEventListener('storage', function(e) {
-  if (e.key == 'checkMail') {
-    if (e.newValue == 'true') {
-      mailChecker.start()
-    } else {
-      mailChecker.stop()
-    }
+  switch (e.key) {
+    case 'checkMail':
+      if (e.newValue == 'true') {
+        mailChecker.start()
+      } else {
+        mailChecker.stop()
+      }
+      break
+    case 'openOnAllPages':
+      if (e.newValue == 'true') {
+        allTabs(function(tab) {
+          redditInfo.lookupURL(tab.url, true, function(info) {
+            if (shouldShow(tab, info)) {
+              setPageActionIcon(tab)
+              tabStatus.showInfo(tab.id, info.name)
+            }
+          })
+        })
+      }
+      break
   }
 }, false)
 
 // Show page action for existing tabs.
-chrome.windows.getAll({populate:true}, function(wins) {
-  wins.forEach(function(win) {
-    win.tabs.forEach(function(tab) {
-      setPageActionIcon(tab)
-    })
-  })
-})
+allTabs(setPageActionIcon)
 
 initOptions()
 console.log('Shine loaded.')
