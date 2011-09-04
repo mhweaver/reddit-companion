@@ -5,7 +5,8 @@ function initOptions() {
     'showTooltips': true,
     'checkMail': true,
     'allowHttps': false,
-    'showPageAction': true
+    'showPageAction': true,
+    'openOnAllPages': false
   }
 
   for (key in defaultOptions) {
@@ -522,6 +523,31 @@ chrome.extension.onRequest.addListener(function(request, sender, callback) {
       break
   }
 })
+
+function shouldShow(tab, info, data) {
+  if (info) {
+    if (localStorage['autoShow'] == 'false') {
+      console.log('Auto-show disabled. Ignoring reddit page', info)
+    } else if (localStorage['autoShowSelf'] == 'false' && info.is_self) {
+      console.log('Ignoring self post', info)
+    } else if (localStorage['allowHttps'] == 'false' && /^https:\/\/.*/.test(tab.url)) {
+      console.log('Https page. Ignoring', info)
+    } else if (barStatus.hidden[info.name]) {
+      console.log('Bar was closed on this page. Ignoring.', info)
+    } else {
+      console.log('Recognized page '+tab.url, info)
+        return true
+      }
+    } else {
+      var referrer = data,
+          redditPattern = /^http:\/\/www\.reddit\.com\/.*/
+      if (!redditPattern.test(tab.url) && redditPattern.test(referrer)) {
+        console.log("Redirect detected. Attempting to locate associated info.", port)
+          handleRedirect(port, tab)
+      }
+    }
+  return false
+}
 function handleConnect(port) {
   var tag = port.name.split('^')
   var name = tag[0],
@@ -532,27 +558,16 @@ function handleConnect(port) {
       var tab = port.sender.tab,
           info = redditInfo.getURL(tab.url)
       setPageActionIcon(tab, info)
-      if (info) {
-        if (localStorage['autoShow'] == 'false') {
-          console.log('Auto-show disabled. Ignoring reddit page', info)
-        } else if (localStorage['autoShowSelf'] == 'false' && info.is_self) {
-          console.log('Ignoring self post', info)
-        } else if (localStorage['allowHttps'] == 'false' && /^https:\/\/.*/.test(tab.url)) {
-          console.log('Https page. Ignoring', info)
-        } else if (barStatus.hidden[info.name]) {
-          console.log('Bar was closed on this page. Ignoring.', info)
-        } else {
-          console.log('Recognized page '+tab.url, info)
-          tabStatus.showInfo(tab.id, info.name)
-        }
-      } else {
-        var referrer = data,
-            redditPattern = /^http:\/\/www\.reddit\.com\/.*/
-        if (!redditPattern.test(tab.url) && redditPattern.test(referrer)) {
-          console.log("Redirect detected. Attempting to locate associated info.", port)
-          handleRedirect(port, tab)
-        }
-      }
+      if (localStorage['openOnAllPages'] == 'true') {
+        redditInfo.lookupURL(tab.url, false, function(info) {
+          if (shouldShow(tab, info, data)) {
+            setPageActionIcon(tab, info)
+            tabStatus.showInfo(tab.id, info.name)
+          }
+        })
+      } else if (shouldShow(tab, info, data)) {
+        tabStatus.showInfo(tab.id, info.name)
+      } 
       break
     case 'bar':
       barStatus.add(port, data)
@@ -594,6 +609,25 @@ function handleRedirect(port, tab) {
     }
   })
 }
+
+function allTabs(callback) {
+  // Go through all tabs and do callback with the tab as the only parameter.
+  chrome.windows.getAll({populate:true}, function(wins) {
+  wins.forEach(function(win) {
+    win.tabs.forEach(function(tab) {
+      callback(tab)
+    })
+  })
+})
+}
+
+// Show page action for existing tabs.
+function setAllPageActionIcons() {
+  allTabs(function(tab) {
+    setPageActionIcon(tab, redditInfo.getURL(tab.url))
+  })
+}
+
 window.addEventListener('storage', function(e) {
   switch (e.key) {
     case 'checkMail':
@@ -607,19 +641,20 @@ window.addEventListener('storage', function(e) {
     case 'showPageAction':
       setAllPageActionIcons()
       break
+    case 'openOnAllPages':
+      if (e.newValue == 'true') {
+        allTabs(function(tab) {
+          redditInfo.lookupURL(tab.url, true, function(info) {
+            if (shouldShow(tab, info)) {
+              setPageActionIcon(tab)
+              tabStatus.showInfo(tab.id, info.name)
+            }
+          })
+        })
+      }
+      break
   }
 }, false)
-
-// Show page action for existing tabs.
-function setAllPageActionIcons() {
-  chrome.windows.getAll({populate:true}, function(wins) {
-    wins.forEach(function(win) {
-      win.tabs.forEach(function(tab) {
-        setPageActionIcon(tab, redditInfo.getURL(tab.url))
-      })
-    })
-  })
-}
 
 initOptions()
 console.log('Shine loaded.')
